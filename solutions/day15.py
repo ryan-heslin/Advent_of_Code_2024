@@ -1,5 +1,5 @@
 from enum import Enum
-from utils.utils import split_groups, extrema
+from utils.utils import split_groups
 
 
 DIRECTIONS = {"^": -1j, ">": 1, "v": 1j, "<": -1}
@@ -26,22 +26,22 @@ def parse(lines, mapping):
     return result, start
 
 
-def print_graph(graph, current):
-    extremes = extrema(graph)
-    mapping = {
-        Tile.OPEN: ".",
-        Tile.WALL: "#",
-        Tile.BOX: "O",
-        Tile.LBOX: "[",
-        Tile.RBOX: "]",
-    }
-    return "\n".join(
-        "".join(
-            mapping[graph[complex(x, y)]] if complex(x, y) != current else "@"
-            for x in range(extremes["xmax"] + 1)
-        )
-        for y in range(extremes["ymax"] + 1)
-    )
+# def print_graph(graph, current):
+#     extremes = extrema(graph)
+#     mapping = {
+#         Tile.OPEN: ".",
+#         Tile.WALL: "#",
+#         Tile.BOX: "O",
+#         Tile.LBOX: "[",
+#         Tile.RBOX: "]",
+#     }
+#     return "\n".join(
+#         "".join(
+#             mapping[graph[complex(x, y)]] if complex(x, y) != current else "@"
+#             for x in range(extremes["xmax"] + 1)
+#         )
+#         for y in range(extremes["ymax"] + 1)
+#     )
 
 
 def simple_push(graph, new, dir, boxes):
@@ -59,7 +59,7 @@ def simple_push(graph, new, dir, boxes):
             # Since leftmost of leftward push is left box, etc.
             choice = int(dir == 1)
             for i in range(int(head.real), int(new.real), -int(dir.real)):
-                graph[i + height] = choices[choice]
+                graph[complex(i, height)] = choices[choice]
                 choice = (choice + 1) % 2
         else:
             box = next(iter(boxes))
@@ -94,12 +94,6 @@ def complex_push(graph, new, dir, boxes):
             graph[coord] = Tile.OPEN
             graph[coord + dir] = box_type
     return new
-    # Shift all boxes by direction, working backwards
-    # Else no box is contacted
-
-
-def edge_distance(coord, maximum):
-    return min(coord, maximum - coord)
 
 
 def calculate_1(graph, boxes):
@@ -107,34 +101,9 @@ def calculate_1(graph, boxes):
     return sum(k.imag * 100 + k.real if v in boxes else 0 for k, v in graph.items())
 
 
-def calculate_2(graph, boxes):
-    # Part 2 formula
-    extremes = extrema(graph)
-    xmax = extremes["xmax"]
-    ymax = extremes["ymax"]
-    done = set()
-    result = 0
-
-    for coord, val in graph.items():
-        if val in boxes and val not in done:
-            offset = 1 if val == Tile.LBOX else -1
-            mate = coord + offset
-            if mate not in done:
-                xdelt = min(
-                    edge_distance(coord.real, xmax), edge_distance(mate.real, xmax)
-                )
-                ydelt = min(
-                    edge_distance(coord.imag, ymax), edge_distance(mate.imag, ymax)
-                )
-                result += 100 * ydelt + xdelt
-                done.update((coord, mate))
-
-    return result
-
-
 def execute(graph, instructions, start, boxes, calculator, part2=False):
     current = start
-    print(print_graph(graph,  current))
+    # print(print_graph(graph,  current))
     for char in instructions:
         dir = DIRECTIONS[char]
         new = current + dir
@@ -145,18 +114,7 @@ def execute(graph, instructions, start, boxes, calculator, part2=False):
             # Just have clear box closest to bot and add to end of chain
             func = complex_push if (part2 and dir.imag) else simple_push
             current = func(graph, new, dir, boxes)
-        print(print_graph(graph, current))
-        print(char)
-        # head = new
-        # while (tile := graph.get(head)) == Tile.BOX:
-        #     head += dir
-        #
-        # if tile == Tile.OPEN:
-        #     graph[head] = Tile.BOX
-        #     graph[new] = Tile.OPEN
-        #     current = new
     return int(calculator(graph, boxes))
-    # Else do nothing, obstructed
 
 
 mapping = dict(zip((".", "#", "O", "[", "]", "@"), list(Tile) + [Tile.OPEN]))
@@ -170,5 +128,12 @@ replacements = {"#": "##", "O": "[]", ".": "..", "@": "@."}
 for old, new in replacements.items():
     lines = lines.replace(old, new)
 part2_graph, part2_start = parse(lines.splitlines(), mapping)
-part2 = execute(part2_graph, instructions, part2_start, {Tile.LBOX, Tile.RBOX}, calculate_2, True)
+part2 = execute(
+    part2_graph,
+    instructions,
+    part2_start,
+    {Tile.LBOX, Tile.RBOX},
+    lambda g, _: calculate_1(g, {Tile.LBOX}),
+    True,
+)
 print(part2)
