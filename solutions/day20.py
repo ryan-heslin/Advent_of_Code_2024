@@ -1,5 +1,6 @@
 from utils.utils import manhattan, neighbors, split_lines
 from collections import defaultdict
+from itertools import combinations, product
 from math import inf
 import heapq
 
@@ -51,71 +52,65 @@ def parse(lines):
     return start, end, graph
 
 
-def A_star(graph, start, end, neighbors, shortest_honest=inf):
-    cheating = shortest_honest < inf
-    start = State(start, target=end, cheated=None)
-    end = State(end, target=end, cheated=None)
-    open_set = [start]
+def A_star(graph, start, end, neighbors):
+    unexplored = set(graph)
+    # start = State(start, target=end, cheated=None)
+    # end = State(end, target=end, cheated=None)
+    open_set = [(start, manhattan(start, end))]
     heapq.heapify(open_set)
 
     g_score = defaultdict(lambda: inf)
     g_score[start] = 0
 
-    cutoff = shortest_honest
-    result = {}
-
-    def can_cheat(current, neighbor):
-        return (
-            cheating
-            and current.cheated is None
-            and any(
-                (new_neighbor.real, new_neighbor.imag) != (current.real, current.imag)
-                and new_neighbor in graph
-                for new_neighbor in neighbors(neighbor)
-            )
-        )
-
-    while True:
-        # if cheating:
-        #     breakpoint()
+    while unexplored:
         try:
-            current = heapq.heappop(open_set)
+            current, dist = heapq.heappop(open_set)
+            #unexplored.remove(current)
         except IndexError:
             break
-        if current.real == end.real and current.imag == end.imag:
-            if not cheating:
-                return {None: g_score[current]}
-            elif g_score[current] <= cutoff:
-                result[current.cheated] = g_score[current]
+        # if current == end:
+        #     return g_score[current]
 
             # We need all routes that save 100, not just shortest
             # cutoff = min(cutoff, g_score[current])
-            continue
-        if g_score[current] >= cutoff:
-            continue
 
         for n in neighbors(current):
-            wall = n not in graph
-            if wall:
-                if not can_cheat(current, n):
-                    continue
-                #breakpoint()
-                cheated = True
-            else:
-                cheated = False
+            if n not in graph:
+                continue
 
-            new_state = State(
-                n.real,
-                n.imag,
-                target=end.target,
-                cheated=(complex(current.real + current.imag), n) if cheated else None,
-            )
             new_g_score = g_score[current] + 1
-            if new_g_score < g_score[new_state]:
-                g_score[new_state] = new_g_score
-                heapq.heappush(open_set, new_state)
+            if new_g_score < g_score[n]:
+                g_score[n] = new_g_score
+                heapq.heappush(open_set, (n, new_g_score))
 
+    return g_score
+
+
+def count_cheats(from_start, from_end, xmax, ymax, graph, neighbors, cutoff):
+    # Each cheat counted only once
+    result = 0
+    for x, y in product(range(xmax), range(ymax)):
+        coord = complex(x, y)
+        # if coord == 6 + 7j:
+        #     breakpoint()
+        if coord not in graph:
+            options = (n for n in neighbors(coord) if from_start[n] < inf and from_start[end] < inf)
+            for first, second in combinations(options, r=2):
+                #print(((from_start[first] + 1 + from_end[second])))
+                result += ((from_start[first] + 2 + from_end[second]) <= cutoff) + (
+                    (from_start[second] + 2 + from_end[first]) <= cutoff
+                    )
     return result
+
+def count_cheats_2(from_start, from_end, cutoff, size = 20):
+    result = 0
+    for start, end in combinations(from_end.keys(), r = 2):
+        dist = manhattan(start, end) 
+        if 1 < dist  <= size:
+            result += ((from_start[start] + from_end[end] + dist) <= cutoff) + ((from_start[end] + from_end[start] + dist) <= cutoff)
+    return result
+
+
 
 
 lines = split_lines("inputs/day20.txt")
@@ -123,12 +118,13 @@ xmax = len(lines[0]) - 1
 ymax = len(lines) - 1
 start, end, graph = parse(lines)
 neighbor_finder = neighbors(0, xmax, 0, ymax, diag=False)
-shortest_honest = A_star(graph, start, end, neighbor_finder)[None]
-part1 = A_star(graph, start, end, neighbor_finder, shortest_honest)
+from_start = A_star(graph, start, end, neighbor_finder)
+from_end = A_star(graph, end, start, neighbor_finder)
+saving = 100
+cutoff = from_start[end] - saving
+# Expect 44 cheats
+part1 = count_cheats(from_start, from_end, xmax, ymax, graph, neighbor_finder, cutoff)
 print(part1)
 
-result = set()
-for x in range(xmax+1):
-    for y in range(ymax + 1):
-        if complex(x, y) not in graph and sum(n in graph for n in neighbor_finder(complex(x, y))) > 1:
-            result.add(complex(x, y))
+part2 = count_cheats_2(from_start, from_end, cutoff)
+print(part2)
