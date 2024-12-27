@@ -1,7 +1,9 @@
 import re
 from math import inf
 from collections import defaultdict
+from functools import reduce
 from itertools import product
+from utils.utils import split_lines
 
 
 def parse_keypad(keypad):
@@ -69,13 +71,19 @@ robot_keypad = """+---+---+
 def find_paths(paths, previous):
     last = "A"
     result = []
-    for c in  previous:
-        result.append({ p + "A" for p in paths[last][c] })
+    for c in previous:
+        result.append({p + "A" for p in paths[last][c]})
         last = c
     return result
 
+
+def filter_shortest(group):
+    shortest = min(map(len, group))
+    return list(reduce(set.union, (s for s in group if len(s) == shortest)))
+
+
 def find_shortest(paths, previous):
-    possibilities = [i  for i, el in enumerate(previous) if len(el) > 1 ]
+    possibilities = [i for i, el in enumerate(previous) if len(el) > 1]
     sequences = product(*(previous[p] for p in possibilities))
     result = []
     for s in sequences:
@@ -86,23 +94,35 @@ def find_shortest(paths, previous):
                 this += s.pop(0)
             else:
                 this += next(iter(el))
+        # breakpoint()
         result.append(find_paths(paths, this))
-   
-    #TODO aggregate result paths
-    breakpoint()
     return result
+    # return list(map(filter_shortest, result))
 
+    # TODO aggregate result paths
 
+def compute_length(paths):
+    shortest = inf
+    for path in paths:
+        for option in path:
+            total = sum(min(map(len, s)) for s in option)
+            shortest = min(total, shortest)
+    return shortest
 
-
+def solve(door_paths, robot_paths, code):    
+    start = find_paths(door_paths, code)
+    inner = find_shortest(robot_paths, start)
+    outer = [find_shortest(robot_paths, i) for i in inner]
+    return compute_length(outer)
 
 # Find outer robot's commands for inner robot
-
-# TODO Check total length of all permutations, use shortest
-
 door_keymap = parse_keypad(door_keypad)
 robot_keymap = parse_keypad(robot_keypad)
 door_paths = explore_paths(door_keymap)
 robot_paths = explore_paths(robot_keymap)
-start = find_paths(door_paths, "029A")
-part2 = find_shortest(robot_paths, start)
+codes = split_lines("inputs/day21.txt")
+
+part1 = sum(solve(door_paths, robot_paths, code) * int(code[:-1]) for code in codes)
+print(part1)
+# Just find shortest path from nest of options
+#An important useful shortcut you can take here is that >>^^ will always be faster than >^>^ though, so the recursive function really only needs to check "horizontal first" vs "vertical first".j

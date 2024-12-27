@@ -14,8 +14,6 @@ def biggest_cluster(graph):
     biggest = set()
 
     for node in graph:
-        # if node in done:
-        #     continue
         remaining = graph[node]
         prev = {node}
 
@@ -53,3 +51,5 @@ print(part1)
 
 part2 = biggest_cluster(graph)
 print(part2)
+# TODO: https://en.wikipedia.org/wiki/Bron%E2%80%93Kerbosch_algorithm
+#Part 2 starts with the set of edges, which are 2-cliques, and then recursively trying to grow the cliques one vertex. For this, starting off with all vertices reachable by any vertex in the clique and filtering the clique's vertices and filtering all vertices that are not reachable by all clique members. 
