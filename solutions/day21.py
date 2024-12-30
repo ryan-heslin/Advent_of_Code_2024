@@ -1,9 +1,56 @@
 import re
 from math import inf
 from collections import defaultdict
-from functools import reduce
-from itertools import product
 from utils.utils import split_lines
+
+
+def recurse(start, char,  paths, memo, depth, max_depth):
+    if depth == max_depth:
+        return 1
+    this_paths = paths[depth]
+    options = this_paths[start][char]
+    best = inf
+
+    key = (start, char)
+    if key in memo[depth]:
+        best =  memo[depth][key]
+    else:
+        for option in options:
+            # Record cost of whole path at depth
+            this_cost = 0  # For A
+            option += "A"
+            # Not sure about this...
+            prev = "A"
+            for new_char in option:
+                this_cost += recurse(prev, new_char, paths, memo, depth + 1, max_depth)
+                prev = new_char
+            # THis should be right...
+            best = min(best, this_cost)
+            # Here is the bug: 
+            memo[depth][key] = min(memo[depth].get(key, inf), this_cost)
+    return best
+
+    # prev = "A"
+    # result = 0
+    # #breakpoint()
+    # for char in code:
+    #     result += inner(prev, char, 0)
+    #     prev = char
+    # return result
+    #
+
+# Best paths change direction at most once
+def min_turns(path):
+    if len(path) < 3:
+        return True
+    prev = path[0]
+    turns = 0
+    for p in path[1:]:
+        turns += p != prev
+        if turns > 1:
+            return False
+        prev = p
+    return True
 
 
 def parse_keypad(keypad):
@@ -42,7 +89,9 @@ def explore_paths(keypad):
                     result[symbol][current_symbol] = []
                     best[current_coord] = n
 
-                result[symbol][current_symbol].append("".join(current_prev))
+                path = "".join(current_prev)
+                if min_turns(path):
+                    result[symbol][current_symbol].append(path)
             for dir, dir_symbol in directions.items():
                 new_coord = current_coord + dir
                 if new_coord in inverse:
@@ -66,55 +115,6 @@ robot_keypad = """+---+---+
 +---+---+---+
 | < | v | > |
 +---+---+---+"""
-
-
-def find_paths(paths, previous):
-    last = "A"
-    result = []
-    for c in previous:
-        result.append({p + "A" for p in paths[last][c]})
-        last = c
-    return result
-
-
-def filter_shortest(group):
-    shortest = min(map(len, group))
-    return list(reduce(set.union, (s for s in group if len(s) == shortest)))
-
-
-def find_shortest(paths, previous):
-    possibilities = [i for i, el in enumerate(previous) if len(el) > 1]
-    sequences = product(*(previous[p] for p in possibilities))
-    result = []
-    for s in sequences:
-        s = list(s)
-        this = ""
-        for i, el in enumerate(previous):
-            if i in possibilities:
-                this += s.pop(0)
-            else:
-                this += next(iter(el))
-        # breakpoint()
-        result.append(find_paths(paths, this))
-    return result
-    # return list(map(filter_shortest, result))
-
-    # TODO aggregate result paths
-
-def compute_length(paths):
-    shortest = inf
-    for path in paths:
-        for option in path:
-            total = sum(min(map(len, s)) for s in option)
-            shortest = min(total, shortest)
-    return shortest
-
-def solve(door_paths, robot_paths, code):    
-    start = find_paths(door_paths, code)
-    inner = find_shortest(robot_paths, start)
-    outer = [find_shortest(robot_paths, i) for i in inner]
-    return compute_length(outer)
-
 # Find outer robot's commands for inner robot
 door_keymap = parse_keypad(door_keypad)
 robot_keymap = parse_keypad(robot_keypad)
@@ -122,7 +122,23 @@ door_paths = explore_paths(door_keymap)
 robot_paths = explore_paths(robot_keymap)
 codes = split_lines("inputs/day21.txt")
 
-part1 = sum(solve(door_paths, robot_paths, code) * int(code[:-1]) for code in codes)
+paths_dict = defaultdict(lambda: robot_paths)
+paths_dict[0] = door_paths
+part1_memo = defaultdict(dict)
+part2_memo = defaultdict(dict)
+part1 = part2 = 0
+
+for code in codes:
+    s1 = s2 =  0
+    prev = "A"
+    for c in code:
+        #print(recurse(prev, c, paths_dict, memo, 0, 3))
+        s1 += recurse(prev, c, paths_dict, part1_memo, 0, 3)
+        s2 += recurse(prev, c, paths_dict, part2_memo, 0, 26)
+        prev = c
+    factor = int(code[:-1])
+    part1 += (s1 * factor)
+    part2 += (s2 * factor)
+    
 print(part1)
-# Just find shortest path from nest of options
-#An important useful shortcut you can take here is that >>^^ will always be faster than >^>^ though, so the recursive function really only needs to check "horizontal first" vs "vertical first".j
+print(part2)
