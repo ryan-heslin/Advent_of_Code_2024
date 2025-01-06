@@ -1,6 +1,10 @@
 from collections import defaultdict
 from utils.utils import split_lines
 
+
+def organize(nodes):
+    return ",".join(sorted(nodes))
+
 def parse(lines):
     result = defaultdict(set)
     for line in lines:
@@ -44,12 +48,25 @@ def clusters(graph):
     return len(found)
 
 
+def bron_kerbosch(R, P, X, G):
+    if not (len(P) or len(X)):
+        return R
+
+    best = set()
+    for vertex in set(P):
+        result = bron_kerbosch(R | {vertex}, P & G[vertex], X &  G[vertex] , G  )
+        if len(result) > len(best):
+            best = result
+        P.discard(vertex)
+        X.add(vertex)
+    return best
+
+
 lines = split_lines("inputs/day23.txt")
 graph = parse(lines)
 part1 = clusters(graph)
 print(part1)
 
+part2 = organize(bron_kerbosch(set(), set(graph.keys()), set(), graph))
 part2 = biggest_cluster(graph)
 print(part2)
-# TODO: https://en.wikipedia.org/wiki/Bron%E2%80%93Kerbosch_algorithm
-#Part 2 starts with the set of edges, which are 2-cliques, and then recursively trying to grow the cliques one vertex. For this, starting off with all vertices reachable by any vertex in the clique and filtering the clique's vertices and filtering all vertices that are not reachable by all clique members. 
