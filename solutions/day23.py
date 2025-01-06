@@ -14,27 +14,6 @@ def parse(lines):
     return result
 
 
-def biggest_cluster(graph):
-    biggest = set()
-
-    for node in graph:
-        remaining = graph[node]
-        prev = {node}
-
-        while remaining:
-            current = remaining.pop()
-            # All previous must be neighbors of new node
-            if current in prev or prev - graph[current]:
-                continue
-            prev.add(current)
-            remaining.update(graph[current])
-        if len(prev) > len(biggest):
-            biggest = prev
-
-    return ",".join(sorted(biggest))
-
-
-
 def clusters(graph):
     found = set()
     for start, neighbors in graph.items():
