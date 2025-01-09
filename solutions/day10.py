@@ -1,4 +1,3 @@
-# TODO change neighbors to checking key inclusion
 from utils.utils import neighbors
 from utils.utils import split_lines
 

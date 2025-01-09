@@ -1,4 +1,3 @@
-import re
 from operator import xor, and_, or_
 from collections import defaultdict
 from utils.utils import split_groups
@@ -53,8 +52,20 @@ def calculate(registers, letter="z"):
 
 
 def all_leading_ones(num):
-    # TODO less embarassing
-    return re.match("^1+0+$", bin(num)[2:])
+    # All leading ones followed by zeroes
+    ones = False
+    if num % 2:
+        return False
+    while num:
+        new = num >> 1
+        if new % 2:
+            ones = True
+        elif ones and not (new % 2):
+            return False
+        num = new
+    return True
+
+    #return re.match("^1+0+$", bin(num)[2:])
 
 
 def swap_rules(rules, first, second):
@@ -79,8 +90,6 @@ def find_misaligned(rules, registers, orig_registers):
             and r["func"] == xor
         ):
             should_not_be_xor.append(i)
-    print(should_be_xor)
-    print(should_not_be_xor)
 
     n = len(should_not_be_xor)
     x = y = n_input = 0
@@ -94,9 +103,9 @@ def find_misaligned(rules, registers, orig_registers):
             y += val
 
     correct = x + y
-    print(correct)
 
     orig = deepcopy(rules)
+    current = None
     for swap in permutations(should_not_be_xor, r=3):
         current = deepcopy(rules)
         for i in range(n):
@@ -106,7 +115,6 @@ def find_misaligned(rules, registers, orig_registers):
         result = simulate(orig_registers.copy(), current)
         if result:
             result = calculate(result)
-            print(bin(result ^ correct))
             if all_leading_ones(result ^ correct):
                 break
             # Reverse swap
@@ -118,7 +126,6 @@ def find_misaligned(rules, registers, orig_registers):
 
     rules = current
     known = set(should_be_xor + should_not_be_xor)
-    print(sorted(rules[i]["output"] for i in known))
     possible = set(range(len(rules)))
     # TODO
     # DOesn't work when rules are deepcopied each run!?
@@ -145,9 +152,6 @@ def find_misaligned(rules, registers, orig_registers):
                 == int(rules[pair[1]]["lhs"][1:])
                 == int(rules[pair[1]]["rhs"][1:])
             ):
-                # TODO:
-                # Just test solution on range of values and accept it if enough are correct
-                print(rules[pair[0]], rules[pair[1]])
                 known.update(pair)
                 break
         # swap_rules(rules, pair[1], pair[0])
