@@ -1,4 +1,5 @@
 import re
+from math import inf
 from utils.utils import split_groups
 from functools import reduce
 from operator import add
@@ -13,7 +14,7 @@ def check_intervals(code, index, lower, upper):
     return [
         (i, i + interval)
         for i in range(lower, upper + 1, interval)
-        if try_value(code, i)[index] == target
+        if try_value(code, i, index)[index] == target
     ]
 
 
@@ -33,12 +34,12 @@ def solve(code):
             ),
         )
         index -= 1
-    assert try_value(code, intervals[0][0]) == code
+    assert try_value(code, intervals[0][0], inf) == code
     return intervals[0][0]
 
 
-def try_value(code, value):
-    prog = Program(code, {"A": value, "B": 0, "C": 0})
+def try_value(code, value, index):
+    prog = Program(code, {"A": value, "B": 0, "C": 0}, index)
     prog.run()
     return prog.out
 
@@ -50,9 +51,10 @@ def parse(registers, program):
 
 
 class Program:
-    def __init__(self, code, registers):
+    def __init__(self, code, registers, index = inf):
         self.registers = registers
         self.code = code
+        self.index = index
         self.halt = len(self.code)
         self.out = []
         self.pointer = self.current = 0
@@ -72,6 +74,8 @@ class Program:
 
     def run(self):
         while 0 <= self.pointer < self.halt:
+            if len(self.out) == self.index + 1:
+                return
             self.current = self.code[self.pointer]
             self.operand = self.code[self.pointer + 1]
             self.ops[self.current]()
